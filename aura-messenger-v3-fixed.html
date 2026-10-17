@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aura Messenger</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        aura: {
+                            50: '#ecfdf5',
+                            500: '#10b981',
+                            600: '#059669',
+                            dark: '#090d12',
+                            panel: 'rgba(15, 23, 42, 0.75)',
+                            chat: 'rgba(30, 41, 59, 0.7)'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 10px; }
+        .chat-bg {
+            background-image: linear-gradient(to bottom, rgba(9, 13, 18, 0.65), rgba(9, 13, 18, 0.85)), url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1920&q=80');
+            background-size: cover;
+            background-position: center;
+        }
+    </style>
+</head>
+<body class="bg-aura-dark text-gray-100 h-screen overflow-hidden font-sans">
+
+    <!-- Экран авторизации -->
+    <div id="auth-screen" class="fixed inset-0 z-50 bg-aura-dark/95 backdrop-blur-xl flex items-center justify-center p-4">
+        <div class="bg-slate-900/80 border border-slate-700/50 w-full max-w-md p-8 rounded-3xl shadow-2xl backdrop-blur-md relative">
+            <div class="text-center mb-8">
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-emerald-500/10 text-emerald-400 rounded-2xl text-3xl mb-3 border border-emerald-500/20">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </div>
+                <h1 class="text-2xl font-bold tracking-wider text-white">AURA MESSENGER</h1>
+                <p class="text-xs text-gray-400 mt-1" id="auth-subtitle">Вход в систему</p>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Email</label>
+                    <input type="email" id="auth-email" class="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-emerald-500 transition text-white" placeholder="name@gmail.com">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Пароль</label>
+                    <input type="password" id="auth-password" class="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-emerald-500 transition text-white" placeholder="••••••••">
+                </div>
+                
+                <div id="auth-error" class="text-red-400 text-xs hidden bg-red-500/10 p-3 rounded-lg border border-red-500/20"></div>
+                <div id="auth-success" class="text-emerald-400 text-xs hidden bg-emerald-500/10 p-3 rounded-lg border border-emerald-500/20"></div>
+
+                <!-- Кнопка с прямым кликом без тега form -->
+                <button type="button" id="auth-submit-btn" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 rounded-xl transition shadow-lg shadow-emerald-500/20 active:scale-95">
+                    Войти в систему
+                </button>
+            </div>
+
+            <div class="mt-6 flex justify-between items-center text-xs">
+                <button type="button" id="auth-toggle-mode" class="text-emerald-400 hover:underline">
+                    Нет аккаунта? Создать
+                </button>
+                <button type="button" id="forgot-pass-btn" class="text-gray-400 hover:text-white">
+                    Забыл пароль?
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Главный экран мессенджера -->
+    <div id="app-screen" class="hidden h-screen w-full flex">
+        
+        <!-- Левая панель (Чаты) -->
+        <div id="sidebar" class="w-full md:w-80 lg:w-96 bg-slate-900/90 border-r border-slate-800/80 flex flex-col h-full z-20 backdrop-blur-md">
+            <div class="p-4 bg-slate-900/50 flex items-center justify-between border-b border-slate-800/60">
+                <div>
+                    <span id="current-user-email" class="text-sm font-semibold block truncate w-48 text-gray-100"></span>
+                    <span class="text-xs text-emerald-400 flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> В сети</span>
+                </div>
+                <button id="logout-btn" title="Выйти" class="w-9 h-9 hover:bg-slate-800 rounded-xl flex items-center justify-center text-gray-400 hover:text-white transition">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
+            </div>
+
+            <!-- Список чатов -->
+            <div id="chats-list" class="flex-1 overflow-y-auto custom-scroll divide-y divide-slate-800/30">
+                <!-- Заполняется динамически -->
+            </div>
+        </div>
+
+        <!-- Правая панель (Чат) -->
+        <div id="chat-window" class="hidden md:flex flex-1 chat-bg flex-col h-full relative">
+            
+            <!-- Шапка чата -->
+            <div class="h-16 bg-slate-900/80 border-b border-slate-800/80 px-6 flex items-center justify-between backdrop-blur-md z-10">
+                <div class="flex items-center space-x-3">
+                    <button id="back-to-chats" class="md:hidden text-gray-300 hover:text-white pr-2 text-lg">
+                        <i class="fa-solid fa-arrow-left"></i>
+                    </button>
+                    <div>
+                        <h2 id="active-chat-title" class="text-sm font-semibold text-gray-100">Общий чат сообщества</h2>
+                        <span class="text-xs text-emerald-400">Синхронизация Firebase Cloud</span>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <!-- Загрузка своего фона -->
+                    <label class="cursor-pointer bg-slate-800/80 hover:bg-slate-700 text-xs text-gray-300 hover:text-white px-3 py-1.5 rounded-xl border border-slate-700 flex items-center gap-2 transition">
+                        <i class="fa-solid fa-image"></i> Сменить фон
+                        <input type="file" id="bg-upload" accept="image/*" class="hidden">
+                    </label>
+                </div>
+            </div>
+
+            <!-- Сообщения -->
+            <div id="messages-container" class="flex-1 overflow-y-auto custom-scroll p-6 space-y-4 flex flex-col">
+                <!-- Сообщения чата -->
+            </div>
+
+            <!-- Поле ввода -->
+            <div class="p-4 bg-slate-900/80 border-t border-slate-800/80 backdrop-blur-md">
+                <form id="message-form" class="flex items-center space-x-3">
+                    <input type="text" id="message-input" autocomplete="off" placeholder="Напишите сообщение..." class="flex-1 bg-slate-800/70 border border-slate-700/60 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-emerald-500 text-gray-100 placeholder-gray-400">
+                    <button type="submit" class="bg-emerald-500 hover:bg-emerald-600 text-white w-11 h-11 rounded-xl flex items-center justify-center transition shadow-lg shadow-emerald-500/20">
+                        <i class="fa-solid fa-paper-plane text-sm"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK v10 -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { 
+            getAuth, 
+            createUserWithEmailAndPassword, 
+            signInWithEmailAndPassword, 
+            signOut, 
+            onAuthStateChanged,
+            sendPasswordResetEmail
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { 
+            getFirestore, 
+            collection, 
+            addDoc, 
+            query, 
+            orderBy, 
+            onSnapshot, 
+            serverTimestamp 
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBO_dtsDLS8hN_gn6ekq_6-dW5orPFt9CI",
+            authDomain: "my-community-acd9f.firebaseapp.com",
+            databaseURL: "https://my-community-acd9f-default-rtdb.firebaseio.com",
+            projectId: "my-community-acd9f",
+            storageBucket: "my-community-acd9f.firebasestorage.app",
+            messagingSenderId: "825654157137",
+            appId: "1:825654157137:web:8207ed80a3a6934763fd70",
+            measurementId: "G-HEK97TTYQ9"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        auth.languageCode = 'ru';
+
+        const db = getFirestore(app);
+
+        // DOM элементы
+        const authScreen = document.getElementById('auth-screen');
+        const appScreen = document.getElementById('app-screen');
+        const authEmail = document.getElementById('auth-email');
+        const authPassword = document.getElementById('auth-password');
+        const authError = document.getElementById('auth-error');
+        const authSuccess = document.getElementById('auth-success');
+        const authSubmitBtn = document.getElementById('auth-submit-btn');
+        const authToggleBtn = document.getElementById('auth-toggle-mode');
+        const forgotPassBtn = document.getElementById('forgot-pass-btn');
+        const logoutBtn = document.getElementById('logout-btn');
+        const currentUserEmailSpan = document.getElementById('current-user-email');
+        const bgUpload = document.getElementById('bg-upload');
+        const chatWindow = document.getElementById('chat-window');
+        const sidebar = document.getElementById('sidebar');
+        const backToChatsBtn = document.getElementById('back-to-chats');
+
+        const messageForm = document.getElementById('message-form');
+        const messageInput = document.getElementById('message-input');
+        const messagesContainer = document.getElementById('messages-container');
+        const chatsList = document.getElementById('chats-list');
+
+        let isSignUpMode = false;
+        let currentUser = null;
+        let unsubscribeChat = null;
+
+        // Переключение кастомного фона
+        bgUpload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    chatWindow.style.backgroundImage = `linear-gradient(to bottom, rgba(9, 13, 18, 0.65), rgba(9, 13, 18, 0.85)), url('${event.target.result}')`;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Мобильная навигация «Назад к чатам»
+        backToChatsBtn.addEventListener('click', () => {
+            chatWindow.classList.add('hidden');
+            sidebar.classList.remove('hidden');
+        });
+
+        // Enter в полях входа запускает вход
+        [authEmail, authPassword].forEach(el => el.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); authSubmitBtn.click(); }
+        }));
+
+        // Переключение режимов: Войти / Создать
+        authToggleBtn.addEventListener('click', () => {
+            isSignUpMode = !isSignUpMode;
+            authError.classList.add('hidden');
+            authSuccess.classList.add('hidden');
+            const subtitle = document.getElementById('auth-subtitle');
+            
+            if (isSignUpMode) {
+                authSubmitBtn.textContent = 'Зарегистрироваться';
+                subtitle.textContent = 'Регистрация нового аккаунта';
+                authToggleBtn.textContent = 'Уже есть аккаунт? Войти';
+            } else {
+                authSubmitBtn.textContent = 'Войти в систему';
+                subtitle.textContent = 'Вход в систему';
+                authToggleBtn.textContent = 'Нет аккаунта? Создать';
+            }
+        });
+
+        // Сброс пароля
+        forgotPassBtn.addEventListener('click', async () => {
+            authError.classList.add('hidden');
+            authSuccess.classList.add('hidden');
+            const email = authEmail.value.trim();
+            if (!email) {
+                authError.textContent = 'Введите ваш Email в поле выше.';
+                authError.classList.remove('hidden');
+                return;
+            }
+            try {
+                await sendPasswordResetEmail(auth, email);
+                authSuccess.textContent = 'Ссылка для сброса пароля отправлена на ваш Email!';
+                authSuccess.classList.remove('hidden');
+            } catch (err) {
+                let msg = err.message;
+                if (err.code === 'auth/user-not-found') msg = 'Пользователь с такой почтой не найден.';
+                if (err.code === 'auth/invalid-email') msg = 'Некорректный адрес электронной почты.';
+                authError.textContent = msg;
+                authError.classList.remove('hidden');
+            }
+        });
+
+        // Обработка входа и регистрации по клику
+        authSubmitBtn.addEventListener('click', async () => {
+            authError.classList.add('hidden');
+            authSuccess.classList.add('hidden');
+            const email = authEmail.value.trim();
+            const password = authPassword.value;
+
+            if (!email || !password) {
+                authError.textContent = 'Пожалуйста, заполните Email и пароль!';
+                authError.classList.remove('hidden');
+                return;
+            }
+
+            try {
+                if (isSignUpMode) {
+                    await createUserWithEmailAndPassword(auth, email, password);
+                } else {
+                    await signInWithEmailAndPassword(auth, email, password);
+                }
+            } catch (error) {
+                let msg = error.message;
+                if (error.code === 'auth/email-already-in-use') {
+                    msg = 'Этот Email уже зарегистрирован. Переключитесь на "Уже есть аккаунт? Войти".';
+                } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                    msg = 'Неверный пароль или email. Проверьте введенные данные.';
+                } else if (error.code === 'auth/user-not-found') {
+                    msg = 'Пользователь не найден. Переключитесь на создание аккаунта.';
+                }
+                authError.textContent = msg;
+                authError.classList.remove('hidden');
+            }
+        });
+
+        logoutBtn.addEventListener('click', () => signOut(auth));
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                authScreen.classList.add('hidden');
+                appScreen.classList.remove('hidden');
+                currentUserEmailSpan.textContent = user.email;
+                initChatApp();
+            } else {
+                currentUser = null;
+                appScreen.classList.add('hidden');
+                authScreen.classList.remove('hidden');
+            }
+        });
+
+        function initChatApp() {
+            chatsList.innerHTML = `
+                <div id="default-chat-item" class="flex items-center px-4 py-3 bg-slate-800/50 cursor-pointer border-l-4 border-emerald-500">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-baseline">
+                            <h4 class="text-sm font-semibold text-gray-200">Общий чат</h4>
+                            <span class="text-[10px] text-emerald-400 font-semibold uppercase">Live</span>
+                        </div>
+                        <p class="text-xs text-gray-400 truncate">my-community-acd9f</p>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('default-chat-item').addEventListener('click', () => {
+                sidebar.classList.add('hidden');
+                chatWindow.classList.remove('hidden');
+                chatWindow.classList.add('flex');
+            });
+
+            if (unsubscribeChat) unsubscribeChat();
+            const q = query(collection(db, "messages"), orderBy("createdAt", "asc"));
+            unsubscribeChat = onSnapshot(q, (snapshot) => {
+                messagesContainer.innerHTML = '';
+                snapshot.forEach((doc) => {
+                    const msg = doc.data();
+                    const isMe = msg.uid === currentUser.uid;
+                    
+                    const msgDiv = document.createElement('div');
+                    msgDiv.className = `flex flex-col max-w-[75%] ${isMe ? 'ml-auto items-end' : 'mr-auto items-start'}`;
+                    
+                    msgDiv.innerHTML = `
+                        <span class="text-[10px] text-gray-400 mb-1 px-1 font-medium">${escapeHtml(msg.email || 'Пользователь')}</span>
+                        <div class="p-3 rounded-2xl text-sm ${isMe ? 'bg-emerald-600/90 text-white rounded-br-none shadow-md shadow-emerald-900/20' : 'bg-slate-800/90 text-gray-100 rounded-bl-none shadow-md shadow-slate-950/40'} border border-white/5 backdrop-blur-sm">
+                            ${escapeHtml(msg.text || '')}
+                        </div>
+                    `;
+                    messagesContainer.appendChild(msgDiv);
+                });
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            });
+        }
+
+        messageForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const text = messageInput.value.trim();
+            if (!text || !currentUser) return;
+
+            try {
+                await addDoc(collection(db, "messages"), {
+                    text: text,
+                    uid: currentUser.uid,
+                    email: currentUser.email,
+                    createdAt: serverTimestamp()
+                });
+                messageInput.value = '';
+            } catch (error) {
+                console.error("Ошибка отправки:", error);
+            }
+        });
+
+        function escapeHtml(text) {
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
+    </script>
+</body>
+</html>
